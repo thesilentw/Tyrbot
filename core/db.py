@@ -134,6 +134,8 @@ class DB:
             sql = sql.replace(" INT ", " INTEGER ")
         elif self.type == self.POSTGRES:
             sql = sql.replace("INT PRIMARY KEY AUTO_INCREMENT", "SERIAL PRIMARY KEY")
+            sql = sql.replace(" LIKE ", " ILIKE ")
+            sql = sql.replace("%", "%%")
 
         return sql, params
 
