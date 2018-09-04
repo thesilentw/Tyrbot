@@ -66,6 +66,8 @@ class CharacterService:
         params = [char_name, char_id, int(time.time())]
         if self.db.type == DB.MYSQL:
             self.db.exec("INSERT IGNORE INTO name_history (name, char_id, created_at) VALUES (?, ?, ?)", params)
+        elif self.db.type == DB.POSTGRES:
+            self.db.exec("INSERT INTO name_history (name, char_id, created_at) VALUES (?, ?, ?) ON CONFLICT(name, char_id) DO NOTHING", params)
         else:
             self.db.exec("INSERT OR IGNORE INTO name_history (name, char_id, created_at) VALUES (?, ?, ?)", params)
 

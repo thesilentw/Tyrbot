@@ -1,5 +1,6 @@
 requests
 mysql-connector
+psycopg2
 pytz
 hjson
 discord

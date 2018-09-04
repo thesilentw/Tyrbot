@@ -1,8 +1,11 @@
+import psycopg2
+
 from core.decorators import instance
 from core.dict_object import DictObject
 from core.logger import Logger
 from pkg_resources import parse_version
 import mysql.connector
+import psycopg2.extras
 import sqlite3
 import re
 import os
@@ -13,6 +16,7 @@ import time
 class DB:
     SQLITE = "sqlite"
     MYSQL = "mysql"
+    POSTGRES = "postgres"
 
     def __init__(self):
         self.conn = None
@@ -21,7 +25,7 @@ class DB:
         self.logger = Logger(__name__)
         self.type = None
 
-    def row_factory(self, cursor: sqlite3.Cursor, row):
+    def sqlite_row_factory(self, cursor: sqlite3.Cursor, row):
         d = {}
         for idx, col in enumerate(cursor.description):
             d[col[0]] = row[idx]
@@ -29,7 +33,7 @@ class DB:
 
     def connect_mysql(self, host, username, password, database_name):
         self.type = self.MYSQL
-        self.conn = mysql.connector.connect(user=username, password=password, host=host, database=database_name, charset='utf8', autocommit=True)
+        self.conn = mysql.connector.connect(user=username, password=password, host=host, database=database_name, charset="utf8", autocommit=True)
         self.exec("SET collation_connection = 'utf8_general_ci'")
         self.exec("SET sql_mode = 'TRADITIONAL,ANSI'")
         self.create_db_version_table()
@@ -37,16 +41,25 @@ class DB:
     def connect_sqlite(self, filename):
         self.type = self.SQLITE
         self.conn = sqlite3.connect(filename, isolation_level=None)
-        self.conn.row_factory = self.row_factory
+        self.conn.row_factory = self.sqlite_row_factory
+        self.create_db_version_table()
+
+    def connect_postgres(self, host, username, password, database_name):
+        self.type = self.POSTGRES
+        self.conn = psycopg2.connect(dbname=database_name, user=username, password=password, host=host)
+        self.conn.set_session(autocommit=True)
+        self.conn.set_client_encoding("utf8")
         self.create_db_version_table()
 
     def create_db_version_table(self):
-        self.exec("CREATE TABLE IF NOT EXISTS db_version (file VARCHAR(255) NOT NULL, version VARCHAR(255) NOT NULL, verified TINYINT NOT NULL)")
+        self.exec("CREATE TABLE IF NOT EXISTS db_version (file VARCHAR(255) NOT NULL, version VARCHAR(255) NOT NULL, verified SMALLINT NOT NULL)")
 
     def _execute_wrapper(self, sql, params, callback):
         if self.type == self.MYSQL:
             # buffered=True - https://stackoverflow.com/a/33632767/280574
             cur = self.conn.cursor(dictionary=True, buffered=True)
+        elif self.type == self.POSTGRES:
+            cur = self.conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
         else:
             cur = self.conn.cursor()
 
@@ -119,6 +132,8 @@ class DB:
         if self.type == self.SQLITE:
             sql = sql.replace("AUTO_INCREMENT", "AUTOINCREMENT")
             sql = sql.replace(" INT ", " INTEGER ")
+        elif self.type == self.POSTGRES:
+            sql = sql.replace("INT PRIMARY KEY AUTO_INCREMENT", "SERIAL PRIMARY KEY")
 
         return sql, params
 
@@ -180,7 +195,7 @@ class DB:
                         if sql and not sql.startswith("--"):
                             cur.execute(sql)
                     except Exception as e:
-                        raise Exception("sql error in file '%s' on line %d: %s" % (filename, line_num, sql))
+                        raise Exception("sql error in file '%s' on line %d: %s" % (filename, line_num, str(e)))
                     line_num += 1
                 cur.close()
 

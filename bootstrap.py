@@ -42,6 +42,8 @@ try:
         db.connect_sqlite("./data/" + config.database.name)
     elif config.database.type == "mysql":
         db.connect_mysql(config.database.host, config.database.username, config.database.password, config.database.name)
+    elif config.database.type == "postgres":
+        db.connect_postgres(config.database.host, config.database.username, config.database.password, config.database.name)
     else:
         raise Exception("Unknown database type '%s'" % config.database.type)
 
