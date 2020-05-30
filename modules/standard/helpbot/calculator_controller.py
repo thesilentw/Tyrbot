@@ -8,12 +8,6 @@ class CalculatorController:
     def __init__(self):
         self.allow_chars_regex = re.compile(r"^[0123456789.+\-*%()/ &|^~<>]+$")
 
-    def inject(self, registry):
-        self.discord_controller = registry.get_instance("discord_controller")
-
-    def start(self):
-        self.discord_controller.register_discord_command_handler(self.calc_discord_cmd, "calc", [Any("formula")])
-
     @command(command="calc", params=[Any("formula")], access_level="all",
              description="Perform a calculation", extended_description="Supported operators:\n\n+ (addition)\n- (subtraction)\n* (multiplication)\n/ (division)\n"
                                                                        "% (modulus)\n** (exponent)\n// (floor/integer division)\n< (less than)\n> (greater than)\n"
@@ -30,5 +24,3 @@ class CalculatorController:
         else:
             return "Error! Invalid character detected."
 
-    def calc_discord_cmd(self, ctx, reply, args):
-        reply(self.calc_cmd(None, *args))
